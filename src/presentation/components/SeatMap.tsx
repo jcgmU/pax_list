@@ -24,10 +24,21 @@ export const SeatMap: React.FC = () => {
   
   if (!manifest) return null;
 
-  // Buscar configuración del avión (priorizar ID exacto o por tipo)
-  const configKey = Object.keys(AIRCRAFT_CONFIGS).find(key => 
-    AIRCRAFT_CONFIGS[key].id.includes(manifest.aircraftType) || key.includes(manifest.aircraftType)
-  ) || 'A320_STD'; // Fallback a A320
+  // Buscar configuración del avión - Robust matching
+  const acType = manifest.aircraftType.toUpperCase();
+  let configKey = '';
+
+  if (acType.includes('787') || acType.includes('788') || acType.includes('789') || acType.includes('B78')) {
+    configKey = 'B788_STD';
+  } else if (acType.includes('320') || acType.includes('32N') || acType.includes('32A')) {
+    configKey = 'A320_STD';
+  } else if (acType.includes('319')) {
+    configKey = 'A319_STD';
+  } else {
+    configKey = Object.keys(AIRCRAFT_CONFIGS).find(key => 
+      acType.includes(key.split('_')[0]) || key.includes(acType)
+    ) || 'A320_STD';
+  }
 
   const config = AIRCRAFT_CONFIGS[configKey];
 

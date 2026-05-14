@@ -18,6 +18,7 @@ export interface FlightManifest {
   date: string;
   aircraftType: string;
   passengers: ParsedPassenger[];
+  infantCount: number;
 }
 
 const normalizeSeat = (rawSeat: string): string => {
@@ -61,13 +62,18 @@ export const parsePaxListPDF = async (file: File): Promise<FlightManifest> => {
   // Usamos el texto con espacios para no fusionar el vuelo con la fecha (ej. AV1822026...)
   const flightMatch = rawTextJoined.match(/\bAV\s?\d{2,4}\b/i);
   const dateMatch = rawTextJoined.replace(/\s+/g, '').match(/202[0-9]{5}/); // Asume años 202x
-  const acMatch = rawTextJoined.match(/\b(788|320|319|32N)\b/);
+  // Mejorado: Buscar 787, 788, 789, 320, 319, 32N, 32A, 321
+  const acMatch = rawTextJoined.match(/\b(787|788|789|320|319|32N|32A|321|B787|B788|B789|A320|A319|A321)\b/i);
+  
+  // Conteo de INF (Infantes) - Heurística: buscar la palabra INF o el código SSR INF
+  const infantCount = (rawTextJoined.match(/\bINF\b/g) || []).length;
 
   const manifest: FlightManifest = {
     flightNumber: flightMatch ? flightMatch[0].toUpperCase().replace(/\s+/g, '') : 'Desconocido',
     date: dateMatch ? dateMatch[0] : '',
-    aircraftType: acMatch ? acMatch[0] : 'Desconocido',
-    passengers: []
+    aircraftType: acMatch ? acMatch[0].toUpperCase() : 'Desconocido',
+    passengers: [],
+    infantCount: infantCount
   };
 
   // Paso 3: Análisis multi-pasada (Línea por línea)
