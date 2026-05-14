@@ -1,5 +1,7 @@
 import { create } from 'zustand';
 import type { FlightManifest, ParsedPassenger } from '../../infrastructure/pdfParser';
+import { AIRCRAFT_CONFIGS } from '../../domain/aircraftConfigs';
+import { FLIGHT_CODES } from '../../domain/flightCodes';
 
 interface AppState {
   manifest: FlightManifest | null;
@@ -22,6 +24,7 @@ interface AppState {
     emptySeats: number; 
     ssrCounts: Record<string, number>; 
     totalMeals: number; 
+    totalPassengers: number;
   };
 }
 
@@ -46,10 +49,42 @@ export const useStore = create<AppState>((set, get) => ({
 
   getFlightStats: () => {
     const { manifest } = get();
-    if (!manifest) return { emptySeats: 0, ssrCounts: {}, totalMeals: 0 };
+    if (!manifest) return { emptySeats: 0, ssrCounts: {}, totalMeals: 0, totalPassengers: 0 };
     
-    // This is a placeholder for actual calculation logic which depends on AircraftConfig
-    // For now, return empty/zero
-    return { emptySeats: 0, ssrCounts: {}, totalMeals: 0 };
+    // Find config
+    const configKey = Object.keys(AIRCRAFT_CONFIGS).find(key => 
+      AIRCRAFT_CONFIGS[key].id.includes(manifest.aircraftType) || key.includes(manifest.aircraftType)
+    ) || 'A320_STD';
+    const config = AIRCRAFT_CONFIGS[configKey];
+
+    // Total seats in config
+    let totalSeatsInConfig = 0;
+    config.elements.forEach(el => {
+      if (el.type === 'cabin') {
+        const layoutCols = el.layout.filter(c => c !== 'aisle').length;
+        const totalRows = el.rows.length;
+        const blocked = el.blockedSeats?.length || 0;
+        totalSeatsInConfig += (layoutCols * totalRows) - blocked;
+      }
+    });
+
+    const totalPassengers = manifest.passengers.length;
+    const emptySeats = Math.max(0, totalSeatsInConfig - totalPassengers);
+
+    // SSR Counts
+    const ssrCounts: Record<string, number> = {};
+    manifest.passengers.forEach(p => {
+      p.codes.forEach(code => {
+        ssrCounts[code] = (ssrCounts[code] || 0) + 1;
+      });
+    });
+
+    // Total Meals
+    const mealCodes = Object.keys(FLIGHT_CODES.MEALS);
+    const totalMeals = manifest.passengers.filter(p => 
+      p.codes.some(c => mealCodes.includes(c))
+    ).length;
+
+    return { emptySeats, ssrCounts, totalMeals, totalPassengers };
   },
 }));
