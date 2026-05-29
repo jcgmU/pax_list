@@ -10,9 +10,9 @@ function App() {
   const { manifest, reset, error, setError } = useStore();
 
   return (
-    <div className="min-h-screen flex flex-col bg-slate-50">
+    <div className="h-screen flex flex-col bg-slate-50 overflow-hidden">
       {/* Navigation Bar */}
-      <nav className="h-16 bg-white border-b border-slate-200 px-6 flex items-center justify-between sticky top-0 z-30">
+      <nav className="h-16 shrink-0 bg-white border-b border-slate-200 px-6 flex items-center justify-between z-30">
         <div className="flex items-center gap-2">
           <div className="bg-[#E20613] p-2 rounded-xl text-white">
             <Plane size={20} />
