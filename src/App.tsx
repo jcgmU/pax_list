@@ -1,4 +1,3 @@
-import React from 'react';
 import { Plane, RotateCcw, ShieldCheck } from 'lucide-react';
 import { useStore } from './presentation/store/useStore';
 import { Dropzone } from './presentation/components/Dropzone';
@@ -65,8 +64,10 @@ function App() {
           </div>
         ) : (
           <div className="flex-1 flex flex-col lg:flex-row h-full overflow-hidden">
-            <SeatMap />
-            <StatsSidebar />
+            <div className="flex-1 flex flex-col overflow-y-auto overflow-x-hidden lg:flex-row lg:overflow-hidden lg:contents">
+              <SeatMap />
+              <StatsSidebar />
+            </div>
             <PassengerModal />
           </div>
         )}

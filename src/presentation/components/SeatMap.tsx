@@ -12,8 +12,10 @@ import { useStore } from '../store/useStore';
 import { AIRCRAFT_CONFIGS } from '../../domain/aircraftConfigs';
 import type { AircraftElement } from '../../domain/aircraftConfigs';
 import { FLIGHT_CODES } from '../../domain/flightCodes';
+import { getAircraftConfigKey } from '../../domain/aircraftMatch';
+import type { ParsedPassenger } from '../../infrastructure/pdfParser';
 
-const IconMap: Record<string, any> = {
+const IconMap: Record<string, React.FC<{ size?: number; className?: string }>> = {
   coffee: Coffee,
   bath: Bath,
   box: Box
@@ -24,22 +26,7 @@ export const SeatMap: React.FC = () => {
   
   if (!manifest) return null;
 
-  // Buscar configuración del avión - Robust matching
-  const acType = manifest.aircraftType.toUpperCase();
-  let configKey = '';
-
-  if (acType.includes('787') || acType.includes('788') || acType.includes('789') || acType.includes('B78')) {
-    configKey = 'B788_STD';
-  } else if (acType.includes('320') || acType.includes('32N') || acType.includes('32A')) {
-    configKey = 'A320_STD';
-  } else if (acType.includes('319')) {
-    configKey = 'A319_STD';
-  } else {
-    configKey = Object.keys(AIRCRAFT_CONFIGS).find(key => 
-      acType.includes(key.split('_')[0]) || key.includes(acType)
-    ) || 'A320_STD';
-  }
-
+  const configKey = getAircraftConfigKey(manifest.aircraftType);
   const config = AIRCRAFT_CONFIGS[configKey];
 
   return (
@@ -56,7 +43,7 @@ export const SeatMap: React.FC = () => {
       </div>
 
       {/* Map Scroll Area */}
-      <div className="flex-1 overflow-x-auto lg:overflow-y-auto pb-20 lg:pb-0 scrollbar-hide">
+      <div className="flex-1 overflow-y-auto overflow-x-auto pb-20 lg:pb-0 scrollbar-hide">
         <div className="min-w-max lg:min-w-0 flex flex-col items-center p-8 bg-slate-50">
           <div className="w-full max-w-2xl bg-white rounded-[40px] shadow-2xl border border-slate-200 p-8 flex flex-col gap-4">
             {config.elements.map((element, idx) => (
@@ -76,9 +63,9 @@ export const SeatMap: React.FC = () => {
   );
 };
 
-const RenderElement: React.FC<{ 
-  element: AircraftElement; 
-  getPassenger: (seat: string) => any;
+const RenderElement: React.FC<{
+  element: AircraftElement;
+  getPassenger: (seat: string) => ParsedPassenger | undefined;
   selectedSeat: string | null;
   onSelect: (seat: string) => void;
   searchTerm: string;
@@ -170,7 +157,7 @@ const RenderElement: React.FC<{
 
 const Seat: React.FC<{
   id: string;
-  passenger?: any;
+  passenger?: ParsedPassenger;
   isSelected: boolean;
   isHighlighted?: boolean;
   isBlocked?: boolean;
@@ -205,10 +192,10 @@ const Seat: React.FC<{
   }
 
   // Identificación de Badges SSR
-  const hasWheelchair = passenger?.codes.some((c: string) => ['WCHR', 'WCHS', 'WCHC', 'WCMP', 'WCOB'].includes(c));
-  const hasPet = passenger?.codes.some((c: string) => ['PETC', 'SVAN', 'ESAN'].includes(c));
-  const hasMeal = passenger?.codes.some((c: string) => Object.keys(FLIGHT_CODES.MEALS).includes(c));
-  const hasMedicalLegal = passenger?.codes.some((c: string) => 
+  const hasWheelchair = passenger?.codes.some(c => ['WCHR', 'WCHS', 'WCHC', 'WCMP', 'WCOB'].includes(c));
+  const hasPet = passenger?.codes.some(c => ['PETC', 'SVAN', 'ESAN'].includes(c));
+  const hasMeal = passenger?.codes.some(c => Object.keys(FLIGHT_CODES.MEALS).includes(c));
+  const hasMedicalLegal = passenger?.codes.some(c =>
     Object.keys(FLIGHT_CODES.MEDICAL).includes(c) || Object.keys(FLIGHT_CODES.LEGAL).includes(c)
   );
 
