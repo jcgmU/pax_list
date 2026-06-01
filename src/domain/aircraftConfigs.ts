@@ -62,7 +62,7 @@ export const AIRCRAFT_CONFIGS: Record<string, AircraftConfig> = {
       { type: 'facility', doors: 'OWE L / OWE R', components: [] }, // Salida de emergencia 1
       { type: 'cabin', class: 'economy', layout: ['A', 'B', 'C', 'aisle', 'D', 'E', 'K'], rows: [12] },
       { type: 'facility', doors: 'OWE L / OWE R', components: [] }, // Salida de emergencia 2
-      { type: 'cabin', class: 'economy', layout: ['A', 'B', 'C', 'aisle', 'D', 'E', 'K'], rows: [14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30] },
+      { type: 'cabin', class: 'economy', layout: ['A', 'B', 'C', 'aisle', 'D', 'E', 'K'], rows: [14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32] },
       { type: 'facility', doors: 'L2 / R2', components: [{ icon: 'bath', label: 'Aft Lav (L)' }, { icon: 'coffee', label: 'Aft Galley' }, { icon: 'bath', label: 'Aft Lav (R)' }] }
     ]
   },
