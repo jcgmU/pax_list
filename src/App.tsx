@@ -40,7 +40,7 @@ function App() {
         {!manifest && (
           <div className="flex items-center gap-2 text-green-600 bg-green-50 px-3 py-1.5 rounded-full border border-green-100">
             <ShieldCheck size={14} />
-            <span className="text-[10px] font-black uppercase tracking-wider">Zero Data Retention</span>
+            <span className="text-[10px] font-black uppercase tracking-wider">Sin Retención de Datos</span>
           </div>
         )}
       </nav>
@@ -73,12 +73,14 @@ function App() {
         )}
       </main>
 
-      {/* Footer / Status Bar (Mobile Only) */}
-      <footer className="lg:hidden h-6 bg-slate-900 text-white flex items-center justify-center gap-4">
-        <p className="text-[8px] font-black uppercase tracking-[0.3em] opacity-50">
-          Modo Operativo • iPad/Mobile Ready
-        </p>
-      </footer>
+      {/* Footer / Status Bar (Mobile Only, only when no manifest active) */}
+      {!manifest && (
+        <footer className="lg:hidden h-6 bg-slate-900 text-white flex items-center justify-center gap-4">
+          <p className="text-[8px] font-black uppercase tracking-[0.3em] opacity-50">
+            Modo Operativo • iPad/Mobile Ready
+          </p>
+        </footer>
+      )}
     </div>
   );
 }

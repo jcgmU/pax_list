@@ -4,20 +4,27 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Stack Decidido
 
-- **Framework:** Vite + React 19 + TypeScript (SPA 100% client-side, sin backend)
+- **Frontend:** Vite + React 19 + TypeScript (SPA, procesamiento delegado al backend)
 - **Estilos:** Tailwind CSS v4 + Lucide React
 - **Estado global:** Zustand
-- **PDF:** pdfjs-dist (procesamiento en el navegador)
-- **No hay servidor, API, ni base de datos.** Todo procesamiento ocurre en memoria del cliente.
+- **Backend:** Python FastAPI + pdfplumber (`backend/main.py`)
+- **PDF:** procesado en el backend con `pdfplumber` (detección visual de tabla, celdas vacías correctas)
 
 ## Comandos
 
 ```bash
+# Frontend
 npm install          # instalar dependencias
-npm run dev          # servidor de desarrollo
+npm run dev          # servidor de desarrollo (http://localhost:5173)
 npm run build        # tsc -b && vite build
 npm run lint         # eslint
 npm run preview      # vista previa del build
+
+# Backend (Python)
+cd backend
+python -m venv .venv && source .venv/bin/activate  # una sola vez
+pip install -r requirements.txt                     # una sola vez
+uvicorn main:app --reload                           # http://localhost:8000
 ```
 
 No hay tests configurados en este proyecto.
@@ -50,13 +57,18 @@ Para agregar un avión nuevo: añadir una entrada a `AIRCRAFT_CONFIGS` con su ke
 
 ## Infraestructura: PDF Parser
 
-`parsePaxListPDF(file)` devuelve un `FlightManifest`. El algoritmo tiene tres pasos:
+`parsePaxListPDF(file: File)` es ahora una función **async** que hace `POST /api/v1/manifest/parse` al backend Python y retorna el `FlightManifest` ya construido.
 
-1. **Agrupación por coordenada Y** (tolerancia 4px): reconstruye líneas de texto reales desde los items posicionales de PDF.js
-2. **Metadatos del vuelo**: regex sobre texto sin espacios (`AV\d{2,4}`, fecha `202x`, tipo de avión)
-3. **Análisis multi-pasada**: para cada línea, extrae asientos (regex `0*\d{1,3}[A-L]`), asigna todos los códigos encontrados a todos los asientos de esa línea (esto maneja las tablas resumen tipo `WCHR 002A 015D`), y extrae nombres solo cuando la línea empieza con un asiento y tiene exactamente uno
+La URL del backend se configura con la variable de entorno `VITE_BACKEND_URL` (default: `http://localhost:8000`).
 
-Los asientos se normalizan eliminando ceros a la izquierda (`002A` → `2A`).
+### Backend (`backend/main.py`)
+
+- Usa `pdfplumber.open()` para extraer tablas por coordenadas visuales → celdas vacías son `None`, no corrupción por desplazamiento.
+- Detecta el encabezado `Seat | First Name | Last Name | Cabin | To | Type | LFM | SSR | Meal | CEM` para indexar columnas correctamente.
+- `codes`: agrega tokens de columnas SSR, Meal, CEM.
+- `status`: tokens coincidentes con `{DIAM, GOLD, SILV, PLUS, STAFF}` (columna LFM).
+- Asientos normalizados: `002A` → `2A`.
+- Metadatos: regex sobre texto completo del PDF (`AV\d{2,4}`, patrones de fecha, tipo de avión).
 
 ## Presentación
 
@@ -73,4 +85,4 @@ Los asientos se normalizan eliminando ceros a la izquierda (`002A` → `2A`).
 - Mobile: mapa con scroll horizontal + PassengerPanel como bottom sheet (60vh) con backdrop
 - Desktop (`lg:`): mapa scrolleable verticalmente + panel derecho sticky de 384px
 
-**Zero Data Retention:** ningún dato de pasajeros sale del navegador. El `reset()` del store limpia todo.
+**Privacidad de datos:** el cliente no retiene datos (Zustand en memoria pura, sin localStorage/IndexedDB/SW). El `reset()` limpia todo. **El PDF sí viaja al backend** para parsing y se descarta inmediatamente — sin almacenamiento ni retención de PII. El backend no loguea nombres, asientos ni datos personales. La comunicación se protege con API key + CORS + rate limiting. Nota: la API key está en el bundle JS del cliente (limitación de SPA); el proxy same-origin es la mejora pendiente para hardening completo.

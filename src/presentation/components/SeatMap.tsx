@@ -1,12 +1,13 @@
-import React from 'react';
-import { 
-  Coffee, 
-  Bath, 
-  Box, 
-  Accessibility, 
-  Dog, 
-  Utensils, 
-  AlertCircle
+import React, { useState } from 'react';
+import {
+  Coffee,
+  Bath,
+  Box,
+  Accessibility,
+  Dog,
+  Utensils,
+  AlertCircle,
+  Search
 } from 'lucide-react';
 import { useStore } from '../store/useStore';
 import { AIRCRAFT_CONFIGS } from '../../domain/aircraftConfigs';
@@ -14,6 +15,7 @@ import type { AircraftElement } from '../../domain/aircraftConfigs';
 import { FLIGHT_CODES } from '../../domain/flightCodes';
 import { getAircraftConfigKey } from '../../domain/aircraftMatch';
 import type { ParsedPassenger } from '../../infrastructure/pdfParser';
+import { SearchBar } from './SearchBar';
 
 const IconMap: Record<string, React.FC<{ size?: number; className?: string }>> = {
   coffee: Coffee,
@@ -23,7 +25,8 @@ const IconMap: Record<string, React.FC<{ size?: number; className?: string }>> =
 
 export const SeatMap: React.FC = () => {
   const { manifest, selectedSeat, setSelectedSeat, getPassengerBySeat, searchTerm } = useStore();
-  
+  const [showSearch, setShowSearch] = useState(false);
+
   if (!manifest) return null;
 
   const configKey = getAircraftConfigKey(manifest.aircraftType);
@@ -32,14 +35,27 @@ export const SeatMap: React.FC = () => {
   return (
     <div className="flex flex-col lg:flex-row w-full lg:h-full gap-6 fade-in lg:overflow-hidden">
       {/* Flight Header (Mobile only, visible on top of map) */}
-      <div className="lg:hidden px-4 py-3 bg-white border-b flex justify-between items-center">
-        <div>
-          <h2 className="font-bold text-[#E20613]">{manifest.flightNumber}</h2>
-          <p className="text-[10px] text-slate-500 uppercase tracking-tighter">{config.id}</p>
+      <div className="lg:hidden bg-white border-b">
+        <div className="px-4 py-3 flex justify-between items-center">
+          <div>
+            <h2 className="font-bold text-[#E20613]">{manifest.flightNumber}</h2>
+            <p className="text-[10px] text-slate-500 uppercase tracking-tighter">{config.id}</p>
+          </div>
+          <div className="flex items-center gap-2">
+            <p className="text-xs font-bold text-slate-700">{manifest.date}</p>
+            <button
+              onClick={() => setShowSearch(!showSearch)}
+              className="p-2 rounded-xl hover:bg-slate-100 text-slate-500 transition-colors"
+            >
+              <Search size={18} />
+            </button>
+          </div>
         </div>
-        <div className="text-right">
-          <p className="text-xs font-bold text-slate-700">{manifest.date}</p>
-        </div>
+        {showSearch && (
+          <div className="px-4 pb-3 border-t border-slate-100">
+            <SearchBar />
+          </div>
+        )}
       </div>
 
       {/* Map Scroll Area */}
