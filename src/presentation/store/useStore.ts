@@ -2,6 +2,8 @@ import { create } from 'zustand';
 import type { FlightManifest, ParsedPassenger } from '../../infrastructure/pdfParser';
 import { AIRCRAFT_CONFIGS } from '../../domain/aircraftConfigs';
 import { FLIGHT_CODES } from '../../domain/flightCodes';
+import { getAircraftConfigKey } from '../../domain/aircraftMatch';
+import { countEmptySeats, countSSR, countMeals } from '../../domain/flightStats';
 
 interface AppState {
   manifest: FlightManifest | null;
@@ -20,11 +22,12 @@ interface AppState {
   
   // Getters
   getPassengerBySeat: (seat: string) => ParsedPassenger | undefined;
-  getFlightStats: () => { 
-    emptySeats: number; 
-    ssrCounts: Record<string, number>; 
-    totalMeals: number; 
+  getFlightStats: () => {
+    emptySeats: number;
+    ssrCounts: Record<string, number>;
+    totalMeals: number;
     totalPassengers: number;
+    infantCount: number;
   };
 }
 
@@ -50,61 +53,21 @@ export const useStore = create<AppState>((set, get) => ({
   getFlightStats: () => {
     const { manifest } = get();
     if (!manifest) return { emptySeats: 0, ssrCounts: {}, totalMeals: 0, totalPassengers: 0, infantCount: 0 };
-    
-    // Find config - Robust matching
-    const acType = manifest.aircraftType.toUpperCase();
-    let configKey = '';
 
-    if (acType.includes('787') || acType.includes('788') || acType.includes('789') || acType.includes('B78')) {
-      configKey = 'B788_STD';
-    } else if (acType.includes('320') || acType.includes('32N') || acType.includes('32A')) {
-      configKey = 'A320_STD';
-    } else if (acType.includes('319')) {
-      // Check for specific A319 if possible, else default
-      configKey = 'A319_STD';
-    } else {
-      // Fallback: try to find any key that matches
-      configKey = Object.keys(AIRCRAFT_CONFIGS).find(key => 
-        acType.includes(key.split('_')[0]) || key.includes(acType)
-      ) || 'A320_STD';
-    }
-
+    const configKey = getAircraftConfigKey(manifest.aircraftType);
     const config = AIRCRAFT_CONFIGS[configKey];
 
-    // Total seats in config (excluding blocked)
-    let totalSeatsInConfig = 0;
-    config.elements.forEach(el => {
-      if (el.type === 'cabin') {
-        const layoutCols = el.layout.filter(c => c !== 'aisle').length;
-        const totalRows = el.rows.length;
-        const blocked = el.blockedSeats?.length || 0;
-        totalSeatsInConfig += (layoutCols * totalRows) - blocked;
-      }
-    });
-
-    const seatedPassengers = manifest.passengers.length;
-    const emptySeats = Math.max(0, totalSeatsInConfig - seatedPassengers);
-
-    // SSR Counts
-    const ssrCounts: Record<string, number> = {};
-    manifest.passengers.forEach(p => {
-      p.codes.forEach(code => {
-        ssrCounts[code] = (ssrCounts[code] || 0) + 1;
-      });
-    });
-
-    // Total Meals
+    const emptySeats = countEmptySeats(manifest, config);
+    const ssrCounts = countSSR(manifest.passengers);
     const mealCodes = Object.keys(FLIGHT_CODES.MEALS);
-    const totalMeals = manifest.passengers.filter(p => 
-      p.codes.some(c => mealCodes.includes(c))
-    ).length;
+    const totalMeals = countMeals(manifest.passengers, mealCodes);
 
-    return { 
-      emptySeats, 
-      ssrCounts, 
-      totalMeals, 
-      totalPassengers: seatedPassengers,
-      infantCount: manifest.infantCount || 0
+    return {
+      emptySeats,
+      ssrCounts,
+      totalMeals,
+      totalPassengers: manifest.passengers.length,
+      infantCount: manifest.infantCount ?? 0,
     };
   },
 }));

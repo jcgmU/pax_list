@@ -46,7 +46,7 @@ function App() {
       </nav>
 
       {/* Main Content Area */}
-      <main className="flex-1 flex flex-col overflow-hidden relative">
+      <main className="flex-1 min-h-0 flex flex-col overflow-hidden relative">
         {error && (
           <div className="absolute top-4 left-1/2 -translate-x-1/2 z-50 w-full max-w-md px-4 fade-in">
             <div className="bg-rose-50 border border-rose-200 text-rose-700 px-4 py-3 rounded-2xl shadow-lg flex justify-between items-center">
@@ -63,8 +63,8 @@ function App() {
             <Dropzone />
           </div>
         ) : (
-          <div className="flex-1 flex flex-col lg:flex-row lg:h-full lg:overflow-hidden">
-            <div className="flex-1 flex flex-col overflow-y-auto overflow-x-auto lg:flex-row lg:overflow-hidden lg:contents">
+          <div className="flex-1 min-h-0 flex flex-col lg:flex-row lg:h-full lg:overflow-hidden">
+            <div className="flex-1 min-h-0 flex flex-col overflow-y-auto overflow-x-auto lg:flex-row lg:overflow-hidden lg:contents">
               <SeatMap />
               <StatsSidebar />
             </div>
