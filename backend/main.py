@@ -4,13 +4,16 @@ import io
 import logging
 import os
 import re
-import traceback
 from typing import Optional
 
 import pdfplumber
-from fastapi import FastAPI, File, HTTPException, UploadFile
+from fastapi import Depends, FastAPI, File, Header, HTTPException, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
+from slowapi.util import get_remote_address
 
 # ---------------------------------------------------------------------------
 # Config / Constants
@@ -21,6 +24,7 @@ PARSE_TIMEOUT_SEC = int(os.getenv("PARSE_TIMEOUT_SEC", "20"))
 ALLOWED_ORIGINS = os.getenv(
     "ALLOWED_ORIGINS", "http://localhost:5173,http://localhost:4173"
 ).split(",")
+API_KEY = os.getenv("API_KEY", "")
 
 logging.basicConfig(
     level=logging.INFO,
@@ -54,7 +58,10 @@ def http_error(status: int, detail: str, code: str) -> HTTPException:
 # App
 # ---------------------------------------------------------------------------
 
+limiter = Limiter(key_func=get_remote_address)
+
 app = FastAPI(title="PaxList Parser", version="1.0.0")
+app.state.limiter = limiter
 
 app.add_middleware(
     CORSMiddleware,
@@ -62,6 +69,16 @@ app.add_middleware(
     allow_methods=["POST"],
     allow_headers=["*"],
 )
+
+
+async def rate_limit_handler(request: Request, exc: RateLimitExceeded) -> JSONResponse:
+    return JSONResponse(
+        status_code=429,
+        content={"detail": "Demasiadas solicitudes. Intenta en un momento.", "error_code": "RATE_LIMITED"},
+    )
+
+
+app.add_exception_handler(RateLimitExceeded, rate_limit_handler)
 
 
 # ---------------------------------------------------------------------------
@@ -280,11 +297,25 @@ def parse_manifest(file_bytes: bytes) -> FlightManifest:
 
 
 # ---------------------------------------------------------------------------
+# Security
+# ---------------------------------------------------------------------------
+
+def verify_api_key(x_api_key: str = Header(default="")) -> None:
+    """Validates X-API-Key header. In dev (API_KEY not set), allow all."""
+    if API_KEY and x_api_key != API_KEY:
+        raise HTTPException(
+            status_code=401,
+            detail={"detail": "API key inválida o ausente.", "error_code": "UNAUTHORIZED"},
+        )
+
+
+# ---------------------------------------------------------------------------
 # Endpoint
 # ---------------------------------------------------------------------------
 
 @app.post("/api/v1/manifest/parse", response_model=FlightManifest)
-async def parse_manifest_endpoint(file: UploadFile = File(...)):
+@limiter.limit("10/minute")
+async def parse_manifest_endpoint(request: Request, file: UploadFile = File(...), _: None = Depends(verify_api_key)):
     # Validate extension
     if not file.filename or not file.filename.lower().endswith(".pdf"):
         raise http_error(400, "El archivo debe ser un PDF.", ErrorCode.NOT_PDF)
@@ -297,8 +328,8 @@ async def parse_manifest_endpoint(file: UploadFile = File(...)):
 
     if len(content) > MAX_FILE_BYTES:
         logger.warning(
-            "file_too_large filename=%s size=%d limit=%d",
-            file.filename, len(content), MAX_FILE_BYTES,
+            "file_too_large size=%d limit=%d",
+            len(content), MAX_FILE_BYTES,
         )
         raise http_error(413, "El archivo supera el tamaño máximo permitido.", ErrorCode.FILE_TOO_LARGE)
 
@@ -312,23 +343,23 @@ async def parse_manifest_endpoint(file: UploadFile = File(...)):
             )
         except asyncio.TimeoutError:
             logger.error(
-                "parse_timeout filename=%s size=%d", file.filename, len(content)
+                "parse_timeout size=%d", len(content)
             )
             raise http_error(504, "El procesamiento tardó demasiado.", ErrorCode.PARSE_TIMEOUT)
         except Exception as exc:
             logger.error(
-                "parse_error filename=%s size=%d error=%s\n%s",
-                file.filename, len(content), type(exc).__name__, traceback.format_exc(),
+                "parse_error size=%d error_type=%s",
+                len(content), type(exc).__name__,
             )
             raise http_error(422, "No se pudo procesar el PDF.", ErrorCode.MALFORMED_PDF)
 
     if not manifest.passengers:
-        logger.warning("no_table_found filename=%s size=%d", file.filename, len(content))
+        logger.warning("no_table_found size=%d", len(content))
         raise http_error(422, "No se encontró tabla de pasajeros en el PDF.", ErrorCode.NO_TABLE_FOUND)
 
     logger.info(
-        "parse_ok filename=%s size=%d passengers=%d infants=%d aircraft=%s",
-        file.filename, len(content), len(manifest.passengers), manifest.infantCount, manifest.aircraftType,
+        "parse_ok size=%d passengers=%d infants=%d aircraft=%s",
+        len(content), len(manifest.passengers), manifest.infantCount, manifest.aircraftType,
     )
 
     return manifest
