@@ -30,7 +30,7 @@ export const SeatMap: React.FC = () => {
   const config = AIRCRAFT_CONFIGS[configKey];
 
   return (
-    <div className="flex flex-col lg:flex-row w-full h-full gap-6 fade-in overflow-hidden">
+    <div className="flex flex-col lg:flex-row w-full lg:h-full gap-6 fade-in lg:overflow-hidden">
       {/* Flight Header (Mobile only, visible on top of map) */}
       <div className="lg:hidden px-4 py-3 bg-white border-b flex justify-between items-center">
         <div>
@@ -43,7 +43,7 @@ export const SeatMap: React.FC = () => {
       </div>
 
       {/* Map Scroll Area */}
-      <div className="flex-1 overflow-y-auto overflow-x-auto pb-20 lg:pb-0 scrollbar-hide">
+      <div className="flex-1 lg:overflow-y-auto overflow-x-auto pb-20 lg:pb-0 scrollbar-hide">
         <div className="min-w-max lg:min-w-0 flex flex-col items-center p-8 bg-slate-50">
           <div className="w-full max-w-2xl bg-white rounded-[40px] shadow-2xl border border-slate-200 p-8 flex flex-col gap-4">
             {config.elements.map((element, idx) => (
